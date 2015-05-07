@@ -120,6 +120,9 @@ def parse(input_filename, output_filename):
                 elif type.startswith("bigint("):
                     type = "bigint"
                     set_sequence = True
+                elif type.startswith("mediumint("):
+                    type = "integer"
+                    set_sequence = True
                 elif type == "longtext":
                     type = "text"
                 elif type == "mediumtext":
@@ -145,13 +148,15 @@ def parse(input_filename, output_filename):
 
                     # Considered using values to make a name, but its dodgy
                     # enum_name = '_'.join(types_arr)
-                    enum_name = "{0}_{1}".format(current_table, name)
+                    # enum_name = "{0}_{1}".format(current_table, name)
+                    #
+                    # if enum_name not in enum_types:
+                    #     output.write("CREATE TYPE {0} AS ENUM ({1}); \n".format(enum_name, types_str));
+                    #     enum_types.append(enum_name)
+                    #
+                    size = max([len(type) for type in types_arr])
 
-                    if enum_name not in enum_types:
-                        output.write("CREATE TYPE {0} AS ENUM ({1}); \n".format(enum_name, types_str));
-                        enum_types.append(enum_name)
-
-                    type = enum_name
+                    type = "varchar(%s)" % (size * 2)
 
                 if final_type:
                     cast_lines.append("ALTER TABLE \"%s\" ALTER COLUMN \"%s\" DROP DEFAULT, ALTER COLUMN \"%s\" TYPE %s USING CAST(\"%s\" as %s)" % (current_table, name, name, final_type, name, final_type))
