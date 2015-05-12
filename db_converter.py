@@ -141,6 +141,8 @@ def parse(input_filename, output_filename):
                     type = "double precision"
                 elif type == "blob":
                     type = "bytea"
+                elif type == "timestamp":
+                    extra = extra.replace(extra[extra.find(" DEFAULT"):], "")
                 elif type.startswith("enum(") or type.startswith("set("):
 
                     types_str = type.split("(")[1].rstrip(")").rstrip('"')
