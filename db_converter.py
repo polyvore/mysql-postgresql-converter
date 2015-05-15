@@ -149,7 +149,8 @@ def parse(input_filename, output_filename):
                 elif type == "double":
                     type = "double precision"
                 elif type == "blob":
-                    type = "bytea"
+                    type = ""
+                    extra =""
                 elif type == "timestamp":
                     extra = extra.replace(extra[extra.find(" DEFAULT"):], "")
                 elif type.startswith("enum(") or type.startswith("set("):
@@ -177,8 +178,9 @@ def parse(input_filename, output_filename):
                     sequence_lines.append("SELECT setval('%s_id_seq', max(id)) FROM %s" % (current_table, current_table))
                     sequence_lines.append("ALTER TABLE \"%s\" ALTER COLUMN \"id\" SET DEFAULT nextval('%s_id_seq')" % (current_table, current_table))
                 # Record it
-                creation_lines.append('"%s" %s %s' % (name, type, extra))
-                tables[current_table]['columns'].append((name, type, extra))
+                if type != "" and extra != "":
+                    creation_lines.append('"%s" %s %s' % (name, type, extra))
+                    tables[current_table]['columns'].append((name, type, extra))
             # Is it a constraint or something?
             elif line.startswith("PRIMARY KEY"):
                 creation_lines.append(line.rstrip(","))
