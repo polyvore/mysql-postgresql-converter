@@ -38,6 +38,7 @@ def parse(input_filename, output_filename):
     #add list for dist key and primary key
     dist_keys = []
     sort_keys = []
+    is_unsigned = True
     # Open output file and write header. Logging file handle will be stdout
     # unless we're writing output to stdout, in which case NO PROGRESS FOR YOU.
     if output_filename == "-":
@@ -101,8 +102,10 @@ def parse(input_filename, output_filename):
                 except ValueError:
                     type = definition.strip()
                     extra = ""
+                is_unsigned = "unsigned" in extra
                 extra = re.sub("CHARACTER SET [\w\d]+\s*", "", extra.replace("unsigned", ""))
                 extra = re.sub("COLLATE [\w\d]+\s*", "", extra.replace("unsigned", ""))
+                extra = extra.replace("signed","")
 
                 # See if it needs type conversion
                 final_type = None
@@ -111,6 +114,9 @@ def parse(input_filename, output_filename):
                     type = "int4"
                     set_sequence = True
                     final_type = "boolean"
+                elif type.startswith("int(") and is_unsigned:
+                    type = "bigint"
+                    set_sequence = True
                 elif type.startswith("int("):
                     type = "integer"
                     set_sequence = True
