@@ -134,7 +134,7 @@ def parse(input_filename, output_filename):
                     type = "text"
                 elif type.startswith("varchar("):
                     size = int(type.split("(")[1].rstrip(")"))
-                    type = "varchar(%s)" % (size * 2)
+                    type = "varchar(%s)" % (size * 3)
                 elif type.startswith("smallint("):
                     type = "int2"
                     set_sequence = True
@@ -161,7 +161,7 @@ def parse(input_filename, output_filename):
                     #
                     size = max([len(type) for type in types_arr])
 
-                    type = "varchar(%s)" % (size * 2)
+                    type = "varchar(%s)" % (size * 3)
 
                 if final_type:
                     cast_lines.append("ALTER TABLE \"%s\" ALTER COLUMN \"%s\" DROP DEFAULT, ALTER COLUMN \"%s\" TYPE %s USING CAST(\"%s\" as %s)" % (current_table, name, name, final_type, name, final_type))
