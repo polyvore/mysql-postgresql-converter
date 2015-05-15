@@ -17,6 +17,8 @@ import subprocess
 
 def parse(input_filename, output_filename):
     "Feed it a file, and it'll output a fixed one"
+    #add list for dist key and primary key
+
 
     # State storage
     if input_filename == "-":
@@ -33,7 +35,9 @@ def parse(input_filename, output_filename):
     cast_lines = []
     num_inserts = 0
     started = time.time()
-
+    #add list for dist key and primary key
+    dist_keys = []
+    sort_keys = []
     # Open output file and write header. Logging file handle will be stdout
     # unless we're writing output to stdout, in which case NO PROGRESS FOR YOU.
     if output_filename == "-":
@@ -47,13 +51,6 @@ def parse(input_filename, output_filename):
         input_fh = sys.stdin
     else:
         input_fh = open(input_filename)
-
-
-    output.write("-- Converted by db_converter\n")
-    output.write("START TRANSACTION;\n")
-    output.write("SET standard_conforming_strings=off;\n")
-    output.write("SET escape_string_warning=off;\n")
-    output.write("SET CONSTRAINTS ALL DEFERRED;\n\n")
 
     for i, line in enumerate(input_fh):
         time_taken = time.time() - started
@@ -110,7 +107,7 @@ def parse(input_filename, output_filename):
                 # See if it needs type conversion
                 final_type = None
                 set_sequence = None
-                if type == "tinyint(1)":
+                if type.startswith("tinyint("):
                     type = "int4"
                     set_sequence = True
                     final_type = "boolean"
@@ -173,58 +170,39 @@ def parse(input_filename, output_filename):
             # Is it a constraint or something?
             elif line.startswith("PRIMARY KEY"):
                 creation_lines.append(line.rstrip(","))
+                dist_keys.append(line.split('"')[1])
             elif line.startswith("CONSTRAINT"):
                 foreign_key_lines.append("ALTER TABLE \"%s\" ADD CONSTRAINT %s DEFERRABLE INITIALLY DEFERRED" % (current_table, line.split("CONSTRAINT")[1].strip().rstrip(",")))
                 foreign_key_lines.append("CREATE INDEX ON \"%s\" %s" % (current_table, line.split("FOREIGN KEY")[1].split("REFERENCES")[0].strip().rstrip(",")))
             elif line.startswith("UNIQUE KEY"):
-                creation_lines.append("UNIQUE (%s)" % line.split("(")[1].split(")")[0])
+                sort_keys.append(line.split('"')[1])
             elif line.startswith("FULLTEXT KEY"):
 
                 fulltext_keys = " || ' ' || ".join( line.split('(')[-1].split(')')[0].replace('"', '').split(',') )
                 fulltext_key_lines.append("CREATE INDEX ON %s USING gin(to_tsvector('english', %s))" % (current_table, fulltext_keys))
 
             elif line.startswith("KEY"):
-                pass
+                sort_keys.append(line.split('"')[1])
             # Is it the end of the table?
             elif line == ");":
-                output.write("CREATE TABLE \"%s\" (\n" % current_table)
+                output.write("CREATE TABLE mysql.%s(\n"  % current_table)
                 for i, line in enumerate(creation_lines):
                     output.write("    %s%s\n" % (line, "," if i != (len(creation_lines) - 1) else ""))
-                output.write(');\n\n')
+                output.write(")")
+                if len(dist_keys) > 0:
+                    output.write("\nDISTKEY("+str(dist_keys[0])+")\n")
+                if len(sort_keys) > 0:
+                    if len(sort_keys) == 1:
+                        output.write("SORTKEY("+str(sort_keys[0])+")")
+                    else:
+                        output.write("COMPOUND SORTKEY("+",".join(sort_keys)+")")
+                output.write(';\n')
+                output.write("GRANT SELECT ON TABLE mysql."+current_table+" TO PUBLIC;")
                 current_table = None
-            # ???
             else:
                 print "\n ! Unknown line inside table creation: %s" % line
 
 
-    # Finish file
-    output.write("\n-- Post-data save --\n")
-    output.write("COMMIT;\n")
-    output.write("START TRANSACTION;\n")
-
-    # Write typecasts out
-    output.write("\n-- Typecasts --\n")
-    for line in cast_lines:
-        output.write("%s;\n" % line)
-
-    # Write FK constraints out
-    output.write("\n-- Foreign keys --\n")
-    for line in foreign_key_lines:
-        output.write("%s;\n" % line)
-
-    # Write sequences out
-    output.write("\n-- Sequences --\n")
-    for line in sequence_lines:
-        output.write("%s;\n" % line)
-
-    # Write full-text indexkeyses out
-    output.write("\n-- Full Text keys --\n")
-    for line in fulltext_key_lines:
-        output.write("%s;\n" % line)
-
-    # Finish file
-    output.write("\n")
-    output.write("COMMIT;\n")
     print ""
 
 
