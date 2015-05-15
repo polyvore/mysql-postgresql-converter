@@ -135,6 +135,12 @@ def parse(input_filename, output_filename):
                 elif type.startswith("varchar("):
                     size = int(type.split("(")[1].rstrip(")"))
                     type = "varchar(%s)" % (size * 3)
+                elif type.startswith("char("):
+                    size = int(type.split("(")[1].rstrip(")"))
+                    type = "char(%s)" % (size * 3)
+                elif type.startswith("smallint(") and is_unsigned:
+                    type = "integer"
+                    set_sequence = True
                 elif type.startswith("smallint("):
                     type = "int2"
                     set_sequence = True
