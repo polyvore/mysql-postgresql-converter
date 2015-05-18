@@ -126,12 +126,9 @@ def parse(input_filename, output_filename):
                 elif type.startswith("mediumint("):
                     type = "integer"
                     set_sequence = True
-                elif type == "longtext":
-                    type = "text"
-                elif type == "mediumtext":
-                    type = "text"
-                elif type == "tinytext":
-                    type = "text"
+                elif type== "text" or type == "longtext" or type == "mediumtext" or type == "tinytext" :
+                    type = ""
+                    extra =""
                 elif type.startswith("varchar("):
                     size = int(type.split("(")[1].rstrip(")"))
                     type = "varchar(%s)" % (size * 3)
