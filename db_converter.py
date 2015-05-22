@@ -37,7 +37,7 @@ def parse(input_filename, output_filename):
     started = time.time()
     #add list for dist key and primary key
     dist_keys = []
-    sort_keys = []
+    sort_keys = set()
     is_unsigned = True
     # Open output file and write header. Logging file handle will be stdout
     # unless we're writing output to stdout, in which case NO PROGRESS FOR YOU.
@@ -186,14 +186,20 @@ def parse(input_filename, output_filename):
                 foreign_key_lines.append("ALTER TABLE \"%s\" ADD CONSTRAINT %s DEFERRABLE INITIALLY DEFERRED" % (current_table, line.split("CONSTRAINT")[1].strip().rstrip(",")))
                 foreign_key_lines.append("CREATE INDEX ON \"%s\" %s" % (current_table, line.split("FOREIGN KEY")[1].split("REFERENCES")[0].strip().rstrip(",")))
             elif line.startswith("UNIQUE KEY"):
-                sort_keys.append(line.split('"')[1])
+                sortkey_list = line.split("(")[1].rstrip(")")
+                for sortkey in sortkey_list.split(","):
+                    if sortkey not in sort_keys and sortkey:
+                        sort_keys.add(sortkey.rstrip(")").rstrip(' '))
             elif line.startswith("FULLTEXT KEY"):
 
                 fulltext_keys = " || ' ' || ".join( line.split('(')[-1].split(')')[0].replace('"', '').split(',') )
                 fulltext_key_lines.append("CREATE INDEX ON %s USING gin(to_tsvector('english', %s))" % (current_table, fulltext_keys))
 
             elif line.startswith("KEY"):
-                sort_keys.append(line.split('"')[1])
+                sortkey_list = line.split("(")[1].rstrip(")")
+                for sortkey in sortkey_list.split(","):
+                    if sortkey not in sort_keys and sortkey:
+                        sort_keys.add(sortkey.rstrip(")").rstrip(' '))
             # Is it the end of the table?
             elif line == ");":
                 output.write("CREATE TABLE mysql.%s(\n"  % current_table)
@@ -203,10 +209,8 @@ def parse(input_filename, output_filename):
                 if len(dist_keys) > 0:
                     output.write("\nDISTKEY("+str(dist_keys[0])+")\n")
                 if len(sort_keys) > 0:
-                    if len(sort_keys) == 1:
-                        output.write("SORTKEY("+str(sort_keys[0])+")")
-                    else:
-                        output.write("COMPOUND SORTKEY("+",".join(sort_keys)+")")
+                    #more than one sortkey
+                    output.write("SORTKEY("+','.join(list(sort_keys))+")")
                 output.write(';\n')
                 output.write("GRANT SELECT ON TABLE mysql."+current_table+" TO PUBLIC;")
                 current_table = None
