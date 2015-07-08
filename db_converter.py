@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 """
 Fixes a MySQL dump made with the right format so it can be directly
@@ -71,7 +71,6 @@ def parse(input_filename, output_filename):
         # Ignore comment lines
         if line.startswith("--") or line.startswith("/*") or line.startswith("LOCK TABLES") or line.startswith("DROP TABLE") or line.startswith("UNLOCK TABLES") or not line:
             continue
-
         # Outside of anything handling
         if current_table is None:
             # Start of a table creation statement?
@@ -103,6 +102,7 @@ def parse(input_filename, output_filename):
                     type = definition.strip()
                     extra = ""
                 is_unsigned = "unsigned" in extra
+                is_utf8mb4 = "utf8mb4" in extra
                 extra = re.sub("CHARACTER SET [\w\d]+\s*", "", extra.replace("unsigned", ""))
                 extra = re.sub("COLLATE [\w\d]+\s*", "", extra.replace("unsigned", ""))
                 extra = extra.replace("signed","")
@@ -131,10 +131,16 @@ def parse(input_filename, output_filename):
                     extra =""
                 elif type.startswith("varchar("):
                     size = int(type.split("(")[1].rstrip(")"))
-                    type = "varchar(%s)" % (size * 3)
+                    if is_utf8mb4:
+                        type = "varchar(%s)" % (size * 4)
+                    else:
+                        type = "varchar(%s)" % (size * 3)
                 elif type.startswith("char("):
                     size = int(type.split("(")[1].rstrip(")"))
-                    type = "char(%s)" % (size * 3)
+                    if is_utf8mb4:
+                        type = "char(%s)" % (size * 4)
+                    else:
+                        type = "char(%s)" % (size * 3)
                 elif type.startswith("smallint(") and is_unsigned:
                     type = "integer"
                     set_sequence = True
